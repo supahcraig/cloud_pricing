@@ -58,6 +58,19 @@ region_defs = {
     'Tel Aviv': 'me-west1',
 }
 
+def clientSetup():
+    # Path to your service account key file
+    key_file_path = "./ubercalc_creds.json"
+
+    # Create credentials using the service account key
+    scopes = ["https://www.googleapis.com/auth/cloud-billing"]
+    credentials = service_account.Credentials.from_service_account_file(key_file_path, scopes=scopes)
+
+    # Refresh the token to ensure it's valid
+    credentials.refresh(Request())
+    access_token = credentials.token
+
+    return access_token
 
 def translateCommit(rawCommit):
     # The commit type text must match what is in the dropdown within the Ubercalc
@@ -92,21 +105,12 @@ def lookupMissingRegion(region, fullDescription):
 
 
 def get_vm_pricing():
-    # Path to your service account key file
-    key_file_path = "./ubercalc_creds.json"
-
-    # Create credentials using the service account key
-    scopes = ["https://www.googleapis.com/auth/cloud-billing"]
-    credentials = service_account.Credentials.from_service_account_file(key_file_path, scopes=scopes)
-
-    # Refresh the token to ensure it's valid
-    credentials.refresh(Request())
-    access_token = credentials.token
 
     # Service ID for Compute Engine
     service_id = "6F81-5844-456A"  # Service ID for Compute Engine
     pricing_url = f"https://cloudbilling.googleapis.com/v1/services/{service_id}/skus"
 
+    access_token = clientSetup()
 
     vm_attribs = []
 
