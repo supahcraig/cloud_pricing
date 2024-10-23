@@ -25,6 +25,26 @@ This uses some GCP python libraries to authenticate, but there is no client libr
 
   This will paste everything into column A.   Note near the bottom of the screen is a clipboard with a dropdown.   Select split text to columns and everything will move to the correct column in the reference sheet.
 
+  *NOTE*:  you may need to `pip install google-auth`
+
+  The code will look for a credentials key file, which you can download when you create a service acct in GCP.  The file will look like this.  It's not like a pem file, you don't need special permissions to use it.  Just make sure your python app can read the file.
+
+  ```json
+  {
+  "type": "service_account",
+  "project_id": "cnelson-387114",
+  "private_key_id": "<your priviate key id",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADAN...blah blah blah...veGRz7GChmx/dk=\n-----END PRIVATE KEY-----\n",
+  "client_email": "ubercalc-pricing-info@yourProjectID.iam.gserviceaccount.com",
+  "client_id": "your client id",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/ubercalc-pricing-info%40yourProjectID.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
+
+
 
 ### The old way
 
