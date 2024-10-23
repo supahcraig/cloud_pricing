@@ -27,6 +27,11 @@ instance_types = ['i3en.large', 'i3en.xlarge', 'i3en.2xlarge', 'i3en.3xlarge', '
                   'i3en.24xlarge', 'i3en.metal',
                   'im4gn.large', 'im4gn.xlarge', 'im4gn.2xlarge', 'im4gn.4xlarge', 'im4gn.8xlarge', 'im4gn.16xlarge',
                   'is4gen.medium', 'is4gen.large', 'is4gen.xlarge', 'is4gen.2xlarge', 'is4gen.4xlarge', 'is4gen.8xlarge',
+                  'i4i.large', 'i4i.xlarge', 'i4i.2xlarge', 'i4i.4xlarge', 'i4i.8xlarge', 'i4i.12xlarge', # not all i4i
+                  'm7gd.medium', 'm7gd.large', 'm7gd.xlarge', 'm7gd.2xlarge', 'm7gd.4xlarge', 'm7gd.8xlarge',
+                  'm7gd.12xlarge', 'm7gd.16xlarge',
+                  'd3.xlarge', 'd3.2xlarge', 'd3.4xlarge', 'd3.8xlarge',
+                  'd3en.xlarge', 'd3en.2xlarge', 'd3en.4xlarge', 'd3en.6xlarge', 'd3en8xlarge', 'd3en.12xlarge',
                   'm5.large', 'm5.xlarge', 'm5.2xlarge', 'm5.4xlarge', # instances recommended by CFLT
                   'c5.large', 'c5.xlarge', 'c5.2xlarge', 'c5.4xlarge', # instances recommended by CFLT
                   'r5.large', 'r5.xlarge', 'r5.2xlarge', 'r5.4xlarge', 'r5.8xlarge', # instances recommended by CFLT
