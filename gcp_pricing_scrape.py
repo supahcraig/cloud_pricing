@@ -20,7 +20,7 @@ from bs4 import BeautifulSoup
 
 call_count = 0
 
-api_key = 'AIzaSyCZpcStqb0TYJwc27CcP9pw0Tj5VSu3S0E'
+api_key = '' # your API key goes here, keep it secure.
 url = "https://cloudbilling.googleapis.com/v1"
 
 
