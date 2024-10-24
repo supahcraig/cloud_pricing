@@ -22,6 +22,10 @@ regions = ['us-east-1', 'us-east-2',
            #'us-gov-east-1', 'us-gov-west-1'
            ]
 
+excluded_regions = ['cn-north-1']
+
+excluded_location_types = ['AWS Wavelength Zone', 'AWS Local Zone']
+
 
 instance_types = ['i3en.large', 'i3en.xlarge', 'i3en.2xlarge', 'i3en.3xlarge', 'i3en.6xlarge', 'i3en.12xlarge',
                   'i3en.24xlarge', 'i3en.metal',
@@ -47,56 +51,7 @@ instance_types = ['i3en.large', 'i3en.xlarge', 'i3en.2xlarge', 'i3en.3xlarge', '
 FLT = '[{{"Field": "tenancy", "Value": "shared", "Type": "TERM_MATCH"}},' \
       '{{"Field": "operatingSystem", "Value": "{o}", "Type": "TERM_MATCH"}},' \
       '{{"Field": "preInstalledSw", "Value": "NA", "Type": "TERM_MATCH"}},' \
-      '{{"Field": "instanceType", "Value": "{t}", "Type": "TERM_MATCH"}},' \
-      '{{"Field": "location", "Value": "{r}", "Type": "TERM_MATCH"}},' \
       '{{"Field": "capacitystatus", "Value": "Used", "Type": "TERM_MATCH"}}]'
-
-
-def find_on_demand_rate(raw_pricing_dict):
-    id1 = list(raw_pricing_dict)[0]
-    id2 = list(raw_pricing_dict[id1]['priceDimensions'])[0]
-
-    return float(raw_pricing_dict[id1]['priceDimensions'][id2]['pricePerUnit']['USD'])
-
-
-def find_RI_rate(raw_pricing_dict, term):
-    for k in raw_pricing_dict:
-
-        if (raw_pricing_dict[k]['termAttributes']['LeaseContractLength'] == term and
-                raw_pricing_dict[k]['termAttributes']['OfferingClass'] == 'standard' and
-                raw_pricing_dict[k]['termAttributes']['PurchaseOption'] == 'No Upfront'):
-
-            pd = raw_pricing_dict[k]['priceDimensions']
-
-            for dim in pd:
-                hourly_rate = float(pd[dim]['pricePerUnit']['USD'])
-                return hourly_rate
-
-
-# Get current AWS price for an on-demand instance
-def get_price(region, instance, os):
-    f = FLT.format(r=region, t=instance, o=os)
-    data = client.get_products(ServiceCode='AmazonEC2', Filters=json.loads(f))
-    #print(data)
-
-    price_list = json.loads(data['PriceList'][0])
-    #price_list = json.dumps(data['PriceList'][0])
-    #print(price_list)
-    on_demand = find_on_demand_rate(price_list['terms']['OnDemand'])
-    ri_1yr = find_RI_rate(price_list['terms']['Reserved'], '1yr')
-    ri_3yr = find_RI_rate(price_list['terms']['Reserved'], '3yr')
-    instance_info = {'specs':  {'vcpu': price_list['product']['attributes']['vcpu'],
-                                'memory': price_list['product']['attributes']['memory'],
-                                'storage': price_list['product']['attributes']['storage']
-                                },
-                     'pricing': {'On Demand': on_demand,
-                                 '1yr Reserved Instance': ri_1yr,
-                                 '3yr Reserved Instance': ri_3yr
-                                 }
-                     }
-
-    return instance_info
-
 
 
 # Translate region code to region name. Even though the API data contains
@@ -116,36 +71,99 @@ def get_region_name(region_code):
         return default_region
 
 
+def getOnDemandPrice(od_pricing_block):
 
-# Get current price for a given instance, region and os
-def fetch_all_region_prices():
-    for r in regions:
-        for i in instance_types:
-            try:
-                price = (get_price(region=get_region_name(r), instance=i, os='Linux'))
+    # on demand pricing is tricky
 
-                print(
-                    f"{r}, {i}, {price['specs']['vcpu']}, {price['specs']['memory'].replace(' GiB', '')} ,{price['pricing']['On Demand']}, {price['pricing']['1yr Reserved Instance']}, {price['pricing']['3yr Reserved Instance']}, {price['specs']['storage']}")
+    try:
+        onDemandCode = list(od_pricing_block)[0]
+        onDemandSubCode = list(od_pricing_block[onDemandCode]['priceDimensions'])[0]
+        onDemandPrice = od_pricing_block[onDemandCode]['priceDimensions'][onDemandSubCode]['pricePerUnit']['USD']
 
-            except botocore.exceptions.UnauthorizedSSOTokenError as e:
-                print("Your AWS session has expired.")
-                exit(98)
+        # print(onDemandPrice)
+        return onDemandPrice
 
-            except IndexError:
-                # this throws when an instance type isn't found in a region
-                print(r, ',', i)
+    except KeyError:
+        raise
 
-            except KeyError:
-                print(r, ',', i, ',', 'region code issue')
+def getRIprice(term, ri_pricing_block):
 
-            except Exception as e:
-                print(r, ',', i)
-                raise e
+    # RI pricing is even trickier
+    for k in ri_pricing_block:
+
+        try:
+            if (ri_pricing_block[k]['termAttributes']['LeaseContractLength'] == term and
+                    ri_pricing_block[k]['termAttributes']['OfferingClass'] == 'standard' and
+                    ri_pricing_block[k]['termAttributes']['PurchaseOption'] == 'No Upfront'):
+                pd = ri_pricing_block[k]['priceDimensions']
+                riCode = list(ri_pricing_block[k]['priceDimensions'])[0]
+
+                ri_price = ri_pricing_block[k]['priceDimensions'][riCode]['pricePerUnit']['USD']
+                #print(ri_price)
+
+                return ri_price
+        except KeyError:
+            print(ri_pricing_block)
+            # TODO:  need to identify which regions cause this problem
+            raise
+
+def main():
+
+    client = boto3.client('pricing', region_name='us-east-1')
+
+    f = FLT.format(o='Linux')
+    next_token = None
+
+    vm_attribs = []
+
+    while True:
+        params = {'ServiceCode': 'AmazonEC2', 'Filters': json.loads(f)}
+
+        if next_token:
+            params['NextToken'] = next_token
+
+        data = client.get_products(**params)
+        next_token = data.get('NextToken')
+
+        price_list = data['PriceList']
+
+        for productStr in price_list:
+            product = json.loads(productStr)
+
+            # Allowing all reagions introduces all sorts of odd stuff like non-USD currencies and no Reserved instances
+            # best to just explicitly list the ones you want, and exclude the ones you don't
+            if product['product']['attributes']['instanceType'] in instance_types and \
+                    product['product']['attributes']['regionCode'] in regions and \
+                    product['product']['attributes']['regionCode'] not in excluded_regions and \
+                    product['product']['attributes']['locationType'] not in excluded_location_types:
+
+                try:
+                    attrib = [product['product']['attributes']['regionCode'],
+                              product['product']['attributes']['instanceType'],
+                              product['product']['attributes']['vcpu'],
+                              product['product']['attributes']['memory'].replace('GiB', '').strip(),
+                              getOnDemandPrice(product['terms']['OnDemand']), # on demand pricing
+                              getRIprice('1yr', product['terms']['Reserved']), # 1 yr ri
+                              getRIprice('3yr', product['terms']['Reserved']), # 3 yr ri
+                              product['product']['attributes']['storage'],
+                              product['product']['attributes']['location'],
+                              ]
+                    vm_attribs.append(attrib)
+
+                    #print(attrib)
+
+                except KeyError:
+                    print(product)
+                    raise
+
+        if not next_token:
+            break
+
+    sorted_vm_list = sorted(vm_attribs, key=lambda x: (x[0], x[1]))
+
+    for vm in sorted_vm_list:
+        print( ','.join(vm))
 
 
-# Use AWS Pricing API through Boto3
-# API only has us-east-1 and ap-south-1 as valid endpoints.
-# It doesn't have any impact on your selected region for your instance.
-client = boto3.client('pricing', region_name='us-east-1')
-
-fetch_all_region_prices()
+if __name__ == "__main__":
+    main()
