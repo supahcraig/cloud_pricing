@@ -1,6 +1,8 @@
-# cloud_pricing
+# Building Pricing Tables for Redpanda Ubercalc
 
 Fetches VM specs &amp; pricing, specifically for Redpanda BYOC, but can be made to pull all instances for all regions.
+
+In a perfect world this would automatically push into the google sheet, but the Redpanda google account doesn't want to allow external applications to modify google docs, so we're stuck doing this manually.   The general idea is that you run one of these scripts, then copy/paste the output into the appropriate tab within the Ubercalc.   The output is csv written to stdout.   If you copy that and paste it, it will all go into a single column.   Google Sheets will give you a little icon near the bottom of the screen asking how you want to deal with the delimted data you just pasted in.  The answer is you want to split text to columns.   It will figure out that the comma is your delimiter, and it will push everthing into the next 6 or 7 columns, which is what the Ubercalc fourmulas are expecting.
 
 
 ## AWS
