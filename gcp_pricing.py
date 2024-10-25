@@ -1,62 +1,10 @@
 import requests
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
+from alive_progress import alive_bar
+from regions import gcp_region_defs
+from instances import gcp_instances
 
-
-# these are the instance families we are interested in
-instance_families = ['N2', 'N2D AMD']
-
-
-region_defs = {
-    # Americas
-    'Iowa': 'us-central1',
-    'South Carolina': 'us-east1',
-    'Northern Virginia': 'us-east4',
-    'Columbus': 'us-east5',
-    'Oregon': 'us-west1',
-    'Los Angeles': 'us-west2',
-    'Salt Lake City': 'us-west3',
-    'Las Vegas': 'us-west4',
-    'Phoenix': 'us-west8',
-    'Dallas': 'us-south1',
-    'Montreal': 'northamerica-northeast1',
-    'Toronto': 'northamerica-northeast2',
-    'Mexico': 'northamerica-south1',
-    'Sao Paulo': 'southamerica-east1',
-    'Santiago': 'southamerica-west1',
-    # Europe
-    'Warsaw': 'europe-central2',
-    'Belgium': 'europe-west1',
-    'London': 'europe-west2',
-    'Frankfurt': 'europe-west3',
-    'Netherlands': 'europe-west4',
-    'Zurich': 'europe-west6',
-    'Milan': 'europe-west8',
-    'Paris': 'europe-west9',
-    'Berlin': 'europe-west10',
-    'Turin': 'europe-west12',
-    'Finland': 'europe-north1',
-    'Stockholm': 'europe-north2',
-    'Madrid': 'europe-southwest1',
-    # APAC
-    'Seoul': 'asia-northeast3',
-    'Sydney': 'australia-southeast1',
-    'Melbourne': 'australia-southeast2',
-    'Taiwan': 'asia-east1',
-    'Hong Kong': 'asia-east2',
-    'Tokyo': 'asia-northeast1',
-    'Osaka': 'asia-northeast2',
-    'Mumbai': 'asia-south1',
-    'Delhi': 'asia-south2',
-    'Singapore': 'asia-southeast1',
-    'Jakarta': 'asia-southeast2',
-    # Africa
-    'Johannesburg': 'africa-south1',
-    # Middle East
-    'Doha': 'me-central1',
-    'Dammam': 'me-central2',
-    'Tel Aviv': 'me-west1',
-}
 
 def clientSetup():
     # Path to your service account key file
@@ -72,20 +20,20 @@ def clientSetup():
 
     return access_token
 
+
 def translateCommit(rawCommit):
     # The commit type text must match what is in the dropdown within the Ubercalc
     # That can be set to whatever, but this decoding represents how it shows in the sheet
 
-    commit = ''
-
     if rawCommit == 'OnDemand':
-        commit = 'On Demand'
-    elif rawCommit == 'Commit1Yr':
-        commit = '1 Year Commit'
-    elif rawCommit == 'Commit3Yr':
-        commit = '3 Year Commit'
+        return 'On Demand'
 
-    return commit
+    elif rawCommit == 'Commit1Yr':
+        return '1 Year Commit'
+
+    elif rawCommit == 'Commit3Yr':
+        return '3 Year Commit'
+
 
 def lookupMissingRegion(region, fullDescription):
     # The region code may not be in the region_defs lookup
@@ -93,7 +41,8 @@ def lookupMissingRegion(region, fullDescription):
     # and that's why we raise missing ones as an exception
 
     try:
-        region_name = list(region_defs.keys())[list(region_defs.values()).index(region)]
+        # have to do a reverse lookup because the dict is inverted from how we actually need it.  Sue me.
+        region_name = list(gcp_region_defs.keys())[list(gcp_region_defs.values()).index(region)]
 
         return region_name
 
@@ -102,6 +51,25 @@ def lookupMissingRegion(region, fullDescription):
 
         # TODO actually add the region code/name to a lookup.
         raise
+
+
+def translate_instance_class(sku_description, instance_family):
+
+    # Translating the SSD is not required; it just makes the LocalSSD rows show up with an "instance type"
+    # so they don't appear out of place when this data gets imported into the Ubercalc
+
+    # Stripping off the "AMD" from 'N2D AMD' is necessary, however.
+    # I anticipate other instance types will suffer from this same problem
+
+    if 'SSD' in sku_description:
+        return '<local ssd>'
+
+    elif 'AMD' in sku_description:
+        # this might end up being fragile, blame Google
+        return instance_family.replace('AMD', '').strip()
+
+    else:
+        return instance_family
 
 
 def get_vm_pricing():
@@ -116,76 +84,75 @@ def get_vm_pricing():
 
     page_token = None
 
-    while True:
+    with alive_bar(title='Fetching data from Google...', spinner='dots') as bar:
+        while True:
+            bar()
 
-        params = {}
-        if page_token:
-            params['pageToken'] = page_token
+            params = {}
+            if page_token:
+                params['pageToken'] = page_token
 
-        # Make a GET request to the pricing API
-        response = requests.get(pricing_url, headers={"Authorization": f"Bearer {access_token}"}, params=params)
+            # Make a GET request to the pricing API
+            response = requests.get(pricing_url, headers={"Authorization": f"Bearer {access_token}"}, params=params)
 
-        if response.status_code == 200:
-            pricing_info = response.json()
+            if response.status_code == 200:
+                pricing_info = response.json()
 
-            for sku in pricing_info.get("skus", []):
-                #print(sku)
+                for sku in pricing_info.get("skus", []):
+                    #print(sku)
 
-                for instance_family in instance_families:
+                    for instance_family in gcp_instances:
 
-                    if (f'{instance_family} Instance Core' in sku['description'] or
-                            f'Commitment v1: {instance_family} Cpu' in sku['description'] or
-                            f'{instance_family} Instance Ram' in sku['description'] or
-                            f'Commitment v1: {instance_family} Ram' in sku['description'] or
-                            'SSD backed Local Storage' in sku['description'] or
-                            'Commitment v1: Local SSD' in sku['description']
-                             ) and \
-                            'Preemptible' not in sku['description']:
+                        if (f'{instance_family} Instance Core' in sku['description'] or
+                                f'Commitment v1: {instance_family} Cpu' in sku['description'] or
+                                f'{instance_family} Instance Ram' in sku['description'] or
+                                f'Commitment v1: {instance_family} Ram' in sku['description'] or
+                                'SSD backed Local Storage' in sku['description'] or
+                                'Commitment v1: Local SSD' in sku['description']
+                                 ) and \
+                                'Preemptible' not in sku['description']:
 
-                        commit = translateCommit(sku['category']['usageType'])
+                            commit = translateCommit(sku['category']['usageType'])
 
-                        modified_family = ''
-                        if 'SSD' in sku['description']:
-                            modified_family = '<local ssd>'
+                            # some cases have multiple regions attached to a single SKU, so this explodes that to a line per region
+                            for region in sku['serviceRegions']:
+                                region_name = lookupMissingRegion(region, sku['description'])
+
+                                attrib = [region,
+                                          region_name,
+                                          translate_instance_class(sku['description'], instance_family),
+                                          '', # placeholder--required
+                                          '', # placeholder--required
+                                          str(sku['pricingInfo'][0]['pricingExpression']['tieredRates'][0]['unitPrice']['nanos'] / 1000000000),
+                                          sku['category']['resourceGroup'],
+                                          commit,
+                                        ]
+
+                                vm_attribs.append(attrib)
+
+                        # troubleshooting block
+                        # if you need a new instance type, put it here and see what tweaks you need to make
+                        elif 'N2 ' in sku['description']:
+                            pass
+                            #print(sku)
+
+                        # troubleshooting block
+                        # sometimes new regions will show up, add the name here to see what tweaks you need to make
+                        elif sku['serviceRegions'][0] == 'me-central1':
+                            pass
+                            #print(sku)
+
+                        # if you're missing rows, they might be falling through the if statement.  Uncomment the print
                         else:
-                            modified_family = instance_family.replace('AMD', '').strip()  # instance type, this might end up being fragile
+                            pass
+                            #print(sku)
 
-                        # some cases have multiple regions attached to a single SKU, so this explodes that to a line per region
-                        for region in sku['serviceRegions']:
-                            region_name = lookupMissingRegion(region, sku['description'])
+                page_token = pricing_info.get("nextPageToken")
+                if not page_token:
+                    break
 
-                            attrib = [region,
-                                      region_name,
-                                      modified_family,
-                                      '', # placeholder--required
-                                      '', # placeholder--required
-                                      str(sku['pricingInfo'][0]['pricingExpression']['tieredRates'][0]['unitPrice']['nanos'] / 1000000000),
-                                      sku['category']['resourceGroup'],
-                                      commit,
-                                    ]
-
-                            vm_attribs.append(attrib)
-
-                    # troubleshooting block
-                    elif 'N2 ' in sku['description']:
-                        pass
-                        #print(sku)
-
-                    # troubleshooting block
-                    elif sku['serviceRegions'][0] == 'me-central1':
-                        pass
-                        #print(sku)
-
-                    else:
-                        pass
-                        #print(sku)
-
-            page_token = pricing_info.get("nextPageToken")
-            if not page_token:
-                break
-
-        else:
-            print(f"Failed to fetch pricing information: {response.status_code}, {response.text}")
+            else:
+                print(f"Failed to fetch pricing information: {response.status_code}, {response.text}")
 
 
     # deduping is required because the SSD's get added to the list for each instance family
