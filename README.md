@@ -17,7 +17,7 @@ Run `aws_pricing.py`, which will generate aabout 2k lines of csv output.   Copy 
 
 ### Maintenance
 
-New instance types & regions should be added to the respective lists.   Pricing will be pulled for all the regions in that list for every instance in that list.
+New instance types & regions should be added to the respective lists found in `regions.py` and `instances.py`.   Pricing will be pulled for all the regions in that list for every instance in that list.  An exclusion list is maintained in `aws_pricing.py` but this is reserved for problematic regions that return weird data.
 
 ---
 
@@ -59,10 +59,10 @@ The output is a sorted csv list of the VMs & SSD pricing by region.  Paste that 
 
 #### Maintenance
 
-New instance types/families will need to be added to the `instance_families` list.  Note the name might not be what you think it is, but how to precisely find that requires some brute force.
+New instance types/families will need to be added to the `gcp_instance` list found in `instances.py`.  Note the name might not be what you think it is, but how to precisely find that requires some brute force.
 TODO:  write a module to show the possible instance type names
 
-New regions that come up will cause the app to throw an error, instucting you to add the new region to the `region_defs` list.   There is no way around this at this time.
+New regions that come up will cause the app to throw an error, instucting you to add the new region to the `gcp_region_defs` list found in `regions.py`.   There is no way around this at this time.
 
 
 ### The old way
@@ -86,8 +86,8 @@ Run `azure_pricing.py`, which will generate ~1000 lines of csv output.  Copy and
 
 ### Maintenance
 
-* if you need to add a new specific instance type (i.e. they have added an `L192as_v3`), just add that specific instance type to the `instances` array inside the `instance_families` list.
+* if you need to add a new specific instance type (i.e. they have added an `L192as_v3`), just add that specific instance type to the `instances` array inside the `azure_instance` list found in `instances.py`.
 
-* If you need to add a whole new family, you'll have to add the new structure to the `instance_families` list.  You'll also need to figure out what the query extension needs to be.  I don't have a good method for doing that at this time.
+* If you need to add a whole new family, you'll have to add the new structure to the `azure_instances` list.  You'll also need to figure out what the query extension needs to be.  I don't have a good method for doing that at this time.
 
 * The assumption is that you will want to pull the pricing for every region.  But you may find that you don't need _all_ of them.   Example is the connector instances that BYOC uses.   You're only going to be using those instances in conjunction with BYOC, so only regions where BYOC is deployed is a reasonable filter.   By default, ALL regions will be pulled, but if the `regions` list is populated then only those regions will be pulled.  There is no explicit exclude mechanism.
