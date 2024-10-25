@@ -1,28 +1,6 @@
 import requests
-
-
-instance_families = [{'family': 'Las v3', 'query_string_ext': "and productName eq 'Lasv3 Series Linux'"
-                                        , 'instances': ['Standard_L8as_v3',
-                                                        'Standard_L16as_v3',
-                                                        'Standard_L32as_v3',
-                                                        'Standard_L48as_v3',
-                                                        'Standard_L64as_v3',
-                                                        'Standard_L80as_v3']
-                                        , 'regions': []},
-                     {'family': 'Fs v2', 'query_string_ext': "and productName eq 'Virtual Machines FSv2 Series'"
-                                       , 'instances': ['Standard_F2s_v2',
-                                                       'Standard_F4s_v2',
-                                                       'Standard_F8s_v2',
-                                                       'Standard_F16s_v2',
-                                                       'Standard_F32s_v2',
-                                                       'Standard_F48s_v2',
-                                                       'Standard_F72s_v2']
-                                       , 'regions': ['northcentralus',
-                                                     'eastus',
-                                                     'norwayeast',
-                                                     'uksouth']},
-
-                  ]
+from alive_progress import alive_bar
+from instances import azure_instances
 
 
 def convertToHourlyRate(term, rate):
@@ -46,49 +24,53 @@ def main():
 
     vm_attribs = []
 
-    for family in instance_families:
+    with alive_bar(title='Fetching data data from Azure...', spinner='dots') as bar:
+        for family in azure_instances:
+            bar()
 
-        for instance in family['instances']:
+            for instance in family['instances']:
 
-            query = f"armSkuName eq '{instance}' {family['query_string_ext']}"
+                query = f"armSkuName eq '{instance}' {family['query_string_ext']}"
 
-            while next_url:
-                response = requests.get(next_url, params={'$filter': query})
+                while next_url:
+                    response = requests.get(next_url, params={'$filter': query})
+                    #print(response)
 
-                if response.status_code == 200:
-                    pricing_data = response.json()
-                    #print(pricing_data)
+                    if response.status_code == 200:
+                        pricing_data = response.json()
+                        #print(pricing_data)
 
-                    for item in pricing_data['Items']:
-                        if 'Low Priority' not in item['skuName'] and \
-                                'Spot' not in item['skuName']:
+                        for item in pricing_data['Items']:
+                            if 'Low Priority' not in item['skuName'] and \
+                                    'Spot' not in item['skuName']:
+                                #print(item)
 
-                            term = item.get('reservationTerm', 'On Demand')
-                            hourly_rate = convertToHourlyRate(term=term, rate=item['unitPrice'])
+                                term = item.get('reservationTerm', 'On Demand')
+                                hourly_rate = convertToHourlyRate(term=term, rate=item['unitPrice'])
 
 
-                            # We may not want all regions for all instance types
-                            # i.e. only BYOC uses Fs types for managed connectors so regions where BYOC doesn't exist
-                            #      might not be relevant, and if there are lots of instances the table will get big
-                            # if no regions are included for the instance family, then ALL regions will be included
-                            if item['armRegionName'] in family.get('regions', '') or \
-                                family.get('regions', '') == '':
+                                # We may not want all regions for all instance types
+                                # i.e. only BYOC uses Fs types for managed connectors so regions where BYOC doesn't exist
+                                #      might not be relevant, and if there are lots of instances the table will get big
+                                # if no regions are included for the instance family, then ALL regions will be included
+                                if item['armRegionName'] in family.get('regions', '') or \
+                                    family.get('regions', []) == []:
 
-                                attrib = [item['armRegionName'],
-                                          item['location'],
-                                          item['meterName'],
-                                          item['skuName'],
-                                          term,
-                                          str(hourly_rate),
-                                          ]
+                                    attrib = [item['armRegionName'],
+                                              item['location'],
+                                              item['meterName'],
+                                              item['skuName'],
+                                              term,
+                                              str(hourly_rate),
+                                              ]
 
-                                vm_attribs.append(attrib)
+                                    vm_attribs.append(attrib)
 
-                    if 'nextLink' in pricing_data:
-                        next_url = pricing_data['nextLink]']
+                        if 'nextLink' in pricing_data:
+                            next_url = pricing_data['nextLink]']
 
-                    else:
-                        break
+                        else:
+                            break
 
     # sorting the output by region, instance, & term is not required, but helps with troubleshooting in Ubercalc
     sorted_vm_pricing = sorted(vm_attribs, key=lambda x: (x[1], x[2], x[4]))
