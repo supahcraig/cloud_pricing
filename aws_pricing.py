@@ -1,47 +1,14 @@
 import boto3
 import botocore.exceptions
 import json
-from pkg_resources import resource_filename
+from alive_progress import alive_bar
+from instances import aws_instances
+from regions import aws_regions
 
-regions = ['us-east-1', 'us-east-2',
-           'us-west-1', 'us-west-2',
-           'ca-central-1',
-           'eu-central-1', 'eu-central-2',
-           'eu-west-1', 'eu-west-2', 'eu-west-3',
-           'eu-north-1',
-           'eu-south-1', 'eu-south-2',
-           'af-south-1',
-           'ap-east-1',
-           'ap-northeast-1', 'ap-northeast-2', 'ap-northeast-3',
-           'ap-south-1', 'ap-south-2',
-           'ap-southeast-1', 'ap-southeast-2', 'ap-southeast-3', 'ap-southeast-4',
-           'il-central-1',
-           'me-south-1',
-           'me-central-1',
-           'sa-east-1',
-           #'us-gov-east-1', 'us-gov-west-1'
-           ]
 
 excluded_regions = ['cn-north-1']
 
 excluded_location_types = ['AWS Wavelength Zone', 'AWS Local Zone']
-
-
-instance_types = ['i3en.large', 'i3en.xlarge', 'i3en.2xlarge', 'i3en.3xlarge', 'i3en.6xlarge', 'i3en.12xlarge',
-                  'i3en.24xlarge', 'i3en.metal',
-                  'im4gn.large', 'im4gn.xlarge', 'im4gn.2xlarge', 'im4gn.4xlarge', 'im4gn.8xlarge', 'im4gn.16xlarge',
-                  'is4gen.medium', 'is4gen.large', 'is4gen.xlarge', 'is4gen.2xlarge', 'is4gen.4xlarge', 'is4gen.8xlarge',
-                  'i4i.large', 'i4i.xlarge', 'i4i.2xlarge', 'i4i.4xlarge', 'i4i.8xlarge', 'i4i.12xlarge', # not all i4i
-                  'm7gd.medium', 'm7gd.large', 'm7gd.xlarge', 'm7gd.2xlarge', 'm7gd.4xlarge', 'm7gd.8xlarge',
-                  'm7gd.12xlarge', 'm7gd.16xlarge',
-                  'd3.xlarge', 'd3.2xlarge', 'd3.4xlarge', 'd3.8xlarge',
-                  'd3en.xlarge', 'd3en.2xlarge', 'd3en.4xlarge', 'd3en.6xlarge', 'd3en8xlarge', 'd3en.12xlarge',
-                  'm5.large', 'm5.xlarge', 'm5.2xlarge', 'm5.4xlarge', # instances recommended by CFLT
-                  'c5.large', 'c5.xlarge', 'c5.2xlarge', 'c5.4xlarge', # instances recommended by CFLT
-                  'r5.large', 'r5.xlarge', 'r5.2xlarge', 'r5.4xlarge', 'r5.8xlarge', # instances recommended by CFLT
-                  # instances used by BYOC connectors
-                  'c5.9xlarge', 'c5.12xlarge', 'c5.18xlarge', 'c5.24xlarge', # other instances (maybe for KC connectors?)
-                  ]
 
 # The basis for this was found on SO:
 # https://stackoverflow.com/questions/51673667/use-boto3-to-get-current-price-for-given-ec2-instance-type
@@ -54,61 +21,42 @@ FLT = '[{{"Field": "tenancy", "Value": "shared", "Type": "TERM_MATCH"}},' \
       '{{"Field": "capacitystatus", "Value": "Used", "Type": "TERM_MATCH"}}]'
 
 
-# Translate region code to region name. Even though the API data contains
-# regionCode field, it will not return accurate data. However using the location
-# field will, but then we need to translate the region code into a region name.
-# You could skip this by using the region names in your code directly, but most
-# other APIs are using the region code.
-def get_region_name(region_code):
-    default_region = 'US East (N. Virginia)'
-    endpoint_file = resource_filename('botocore', 'data/endpoints.json')
-    try:
-        with open(endpoint_file, 'r') as f:
-            data = json.load(f)
-        # Botocore is using Europe while Pricing API using EU...sigh...
-        return data['partitions'][0]['regions'][region_code]['description'].replace('Europe', 'EU')
-    except IOError:
-        return default_region
-
-
-def getOnDemandPrice(od_pricing_block):
+def get_on_demand_price(od_pricing_block):
 
     # on demand pricing is tricky
+    # the OnDemand pricing payload is embedded under some sort of serial # key in the json
+    # it's the only key at this level, so it's safe to turn it into a list and grab the first element
+    # that element will the the "serial #" which can then be fed back into the dictionary to get the price
+    onDemandCode = list(od_pricing_block)[0]
+    onDemandSubCode = list(od_pricing_block[onDemandCode]['priceDimensions'])[0]
+    onDemandPrice = od_pricing_block[onDemandCode]['priceDimensions'][onDemandSubCode]['pricePerUnit']['USD']
 
-    try:
-        onDemandCode = list(od_pricing_block)[0]
-        onDemandSubCode = list(od_pricing_block[onDemandCode]['priceDimensions'])[0]
-        onDemandPrice = od_pricing_block[onDemandCode]['priceDimensions'][onDemandSubCode]['pricePerUnit']['USD']
+    # print(onDemandPrice)
+    return onDemandPrice
 
-        # print(onDemandPrice)
-        return onDemandPrice
 
-    except KeyError:
-        raise
-
-def getRIprice(term, ri_pricing_block):
+def get_ri_price(term, ri_pricing_block):
 
     # RI pricing is even trickier
     for k in ri_pricing_block:
 
-        try:
-            if (ri_pricing_block[k]['termAttributes']['LeaseContractLength'] == term and
-                    ri_pricing_block[k]['termAttributes']['OfferingClass'] == 'standard' and
-                    ri_pricing_block[k]['termAttributes']['PurchaseOption'] == 'No Upfront'):
-                pd = ri_pricing_block[k]['priceDimensions']
-                riCode = list(ri_pricing_block[k]['priceDimensions'])[0]
+        if (ri_pricing_block[k]['termAttributes']['LeaseContractLength'] == term and
+                ri_pricing_block[k]['termAttributes']['OfferingClass'] == 'standard' and
+                ri_pricing_block[k]['termAttributes']['PurchaseOption'] == 'No Upfront'):
 
-                ri_price = ri_pricing_block[k]['priceDimensions'][riCode]['pricePerUnit']['USD']
-                #print(ri_price)
+            # the RI pricing payload is embedded under some sort of serial # key in the json
+            # it's the only key at this level, so it's safe to turn it into a list and grab the first element
+            # that element will the the "serial #" which can then be fed back into the dictionary to get the price
+            ri_code = list(ri_pricing_block[k]['priceDimensions'])[0]
+            ri_price = ri_pricing_block[k]['priceDimensions'][ri_code]['pricePerUnit']['USD']
+            #print(ri_price)
 
-                return ri_price
-        except KeyError:
-            print(ri_pricing_block)
-            # TODO:  need to identify which regions cause this problem
-            raise
+            return ri_price
+
 
 def main():
 
+    # the client must be created out of only specific regions, us-east-1 is one of them.
     client = boto3.client('pricing', region_name='us-east-1')
 
     f = FLT.format(o='Linux')
@@ -116,50 +64,60 @@ def main():
 
     vm_attribs = []
 
-    while True:
-        params = {'ServiceCode': 'AmazonEC2', 'Filters': json.loads(f)}
+    with alive_bar(title='Fetching EC2 data from AWS...', spinner='dots') as bar:
+        while True:
+            bar()
+            params = {'ServiceCode': 'AmazonEC2', 'Filters': json.loads(f)}
 
-        if next_token:
-            params['NextToken'] = next_token
+            if next_token:
+                params['NextToken'] = next_token
 
-        data = client.get_products(**params)
-        next_token = data.get('NextToken')
+            try:
+                data = client.get_products(**params)
+                next_token = data.get('NextToken')
 
-        price_list = data['PriceList']
+            except botocore.exceptions.UnauthorizedSSOTokenError as e:
+                print("Your AWS session has expired.")
+                exit(98)
 
-        for productStr in price_list:
-            product = json.loads(productStr)
+            price_list = data['PriceList']
 
-            # Allowing all reagions introduces all sorts of odd stuff like non-USD currencies and no Reserved instances
-            # best to just explicitly list the ones you want, and exclude the ones you don't
-            if product['product']['attributes']['instanceType'] in instance_types and \
-                    product['product']['attributes']['regionCode'] in regions and \
-                    product['product']['attributes']['regionCode'] not in excluded_regions and \
-                    product['product']['attributes']['locationType'] not in excluded_location_types:
+            for productStr in price_list:
+                product = json.loads(productStr)
 
-                try:
-                    attrib = [product['product']['attributes']['regionCode'],
-                              product['product']['attributes']['instanceType'],
-                              product['product']['attributes']['vcpu'],
-                              product['product']['attributes']['memory'].replace('GiB', '').strip(),
-                              getOnDemandPrice(product['terms']['OnDemand']), # on demand pricing
-                              getRIprice('1yr', product['terms']['Reserved']), # 1 yr ri
-                              getRIprice('3yr', product['terms']['Reserved']), # 3 yr ri
-                              product['product']['attributes']['storage'],
-                              product['product']['attributes']['location'],
-                              ]
-                    vm_attribs.append(attrib)
+                # Allowing all regions introduces all sorts of odd stuff like non-USD currencies and no RI's
+                # best to just explicitly list the ones you want, and exclude the ones you don't
+                if product['product']['attributes']['instanceType'] in aws_instances and \
+                        product['product']['attributes']['regionCode'] in aws_regions and \
+                        product['product']['attributes']['regionCode'] not in excluded_regions and \
+                        product['product']['attributes']['locationType'] not in excluded_location_types:
 
-                    #print(attrib)
+                    try:
+                        attrib = [
+                                  product['product']['attributes']['location'],
+                                  product['product']['attributes']['regionCode'],
+                                  product['product']['attributes']['instanceType'],
+                                  product['product']['attributes']['vcpu'],
+                                  product['product']['attributes']['memory'].replace('GiB', '').strip(),
+                                  get_on_demand_price(product['terms']['OnDemand']), # on demand pricing
+                                  get_ri_price('1yr', product['terms']['Reserved']), # 1 yr ri
+                                  get_ri_price('3yr', product['terms']['Reserved']), # 3 yr ri
+                                  product['product']['attributes']['storage'],
+                                  ]
+                        vm_attribs.append(attrib)
 
-                except KeyError:
-                    print(product)
-                    raise
+                        #print(attrib)
 
-        if not next_token:
-            break
+                    except KeyError:
+                        # not even trying to handle the error, just show the problematic payload
+                        print(product)
+                        raise
 
-    sorted_vm_list = sorted(vm_attribs, key=lambda x: (x[0], x[1]))
+            if not next_token:
+                break
+
+    # Sort by region code & instance type.  Sorting is not required, but makes it easier to troubleshoot the Ubercalc
+    sorted_vm_list = sorted(vm_attribs, key=lambda x: (x[1], x[2]))
 
     for vm in sorted_vm_list:
         print( ','.join(vm))
