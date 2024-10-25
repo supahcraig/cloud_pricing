@@ -1,0 +1,72 @@
+
+# Only regions in this list will be included in the final price output
+aws_regions = ['us-east-1', 'us-east-2',
+               'us-west-1', 'us-west-2',
+               'ca-central-1',
+               'eu-central-1', 'eu-central-2',
+               'eu-west-1', 'eu-west-2', 'eu-west-3',
+               'eu-north-1',
+               'eu-south-1', 'eu-south-2',
+               'af-south-1',
+               'ap-east-1',
+               'ap-northeast-1', 'ap-northeast-2', 'ap-northeast-3',
+               'ap-south-1', 'ap-south-2',
+               'ap-southeast-1', 'ap-southeast-2', 'ap-southeast-3', 'ap-southeast-4',
+               'il-central-1',
+               'me-south-1',
+               'me-central-1',
+               'sa-east-1',
+               #'us-gov-east-1', 'us-gov-west-1'
+               ]
+
+# these are region code/name definitions, NOT a filter list for pulling pricing
+# as GCP adds new regions, this list will need to be updated
+gcp_region_defs = { # Americas
+                    'Iowa': 'us-central1',
+                    'South Carolina': 'us-east1',
+                    'Northern Virginia': 'us-east4',
+                    'Columbus': 'us-east5',
+                    'Oregon': 'us-west1',
+                    'Los Angeles': 'us-west2',
+                    'Salt Lake City': 'us-west3',
+                    'Las Vegas': 'us-west4',
+                    'Phoenix': 'us-west8',
+                    'Dallas': 'us-south1',
+                    'Montreal': 'northamerica-northeast1',
+                    'Toronto': 'northamerica-northeast2',
+                    'Mexico': 'northamerica-south1',
+                    'Sao Paulo': 'southamerica-east1',
+                    'Santiago': 'southamerica-west1',
+                    # Europe
+                    'Warsaw': 'europe-central2',
+                    'Belgium': 'europe-west1',
+                    'London': 'europe-west2',
+                    'Frankfurt': 'europe-west3',
+                    'Netherlands': 'europe-west4',
+                    'Zurich': 'europe-west6',
+                    'Milan': 'europe-west8',
+                    'Paris': 'europe-west9',
+                    'Berlin': 'europe-west10',
+                    'Turin': 'europe-west12',
+                    'Finland': 'europe-north1',
+                    'Stockholm': 'europe-north2',
+                    'Madrid': 'europe-southwest1',
+                    # APAC
+                    'Seoul': 'asia-northeast3',
+                    'Sydney': 'australia-southeast1',
+                    'Melbourne': 'australia-southeast2',
+                    'Taiwan': 'asia-east1',
+                    'Hong Kong': 'asia-east2',
+                    'Tokyo': 'asia-northeast1',
+                    'Osaka': 'asia-northeast2',
+                    'Mumbai': 'asia-south1',
+                    'Delhi': 'asia-south2',
+                    'Singapore': 'asia-southeast1',
+                    'Jakarta': 'asia-southeast2',
+                    # Africa
+                    'Johannesburg': 'africa-south1',
+                    # Middle East
+                    'Doha': 'me-central1',
+                    'Dammam': 'me-central2',
+                    'Tel Aviv': 'me-west1',
+                }
