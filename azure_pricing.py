@@ -1,4 +1,5 @@
 import requests
+import datetime
 from alive_progress import alive_bar
 from instances import azure_instances
 
@@ -74,6 +75,17 @@ def main():
 
     # sorting the output by region, instance, & term is not required, but helps with troubleshooting in Ubercalc
     sorted_vm_pricing = sorted(vm_attribs, key=lambda x: (x[1], x[2], x[4]))
+
+    # You will want to paste the "prices as of" as well as the header row.
+    print(f'PRICES AS OF {datetime.datetime.now():%m/%d/%Y}')
+    print(','.join(['Region Code',
+                    'Region Name',
+                    'Instance Name',
+                    'Full Instance Name',
+                    'Commit',
+                    'Hourly Rate']
+                   )
+          )
 
     for vm in sorted_vm_pricing:
         print( ','.join(vm))
