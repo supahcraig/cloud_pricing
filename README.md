@@ -94,6 +94,26 @@ Run `azure_pricing.py`, which will generate ~1000 lines of csv output.  Copy and
 
 * if you need to add a new specific instance type (i.e. they have added an `L192as_v3`), just add that specific instance type to the `instances` array inside the `azure_instance` list found in `instances.py`.
 
-* If you need to add a whole new family, you'll have to add the new structure to the `azure_instances` list.  You'll also need to figure out what the query extension needs to be.  I don't have a good method for doing that at this time.
+* If you need to add a whole new family, you'll have to add the new structure to the `azure_instances` list.  You'll also need to figure out the productName to add to the query string, using the `--instance` command line parameter:
+
+`python azure_pricing --instance Standard_A8_v2`
+
+This will return a list of all productNames associated to that instance type.  Find the correct one (usually the one involving Linux or non-Windows VM), and include it in the query extension in your new azure instance in `instances.py`
+
+```json
+                     {'family': 'Fs v2', 'query_string_ext': "and productName eq 'Virtual Machines FSv2 Series'"
+                                       , 'instances': ['Standard_F2s_v2',
+                                                       'Standard_F4s_v2',
+                                                       'Standard_F8s_v2',
+                                                       'Standard_F16s_v2',
+                                                       'Standard_F32s_v2',
+                                                       'Standard_F48s_v2',
+                                                       'Standard_F72s_v2']
+                                       , 'regions': ['northcentralus',
+                                                     'eastus',
+                                                     'norwayeast',
+                                                     'uksouth']},
+```
+
 
 * The assumption is that you will want to pull the pricing for every region.  But you may find that you don't need _all_ of them.   Example is the connector instances that BYOC uses.   You're only going to be using those instances in conjunction with BYOC, so only regions where BYOC is deployed is a reasonable filter.   By default, ALL regions will be pulled, but if the `regions` list is populated then only those regions will be pulled.  There is no explicit exclude mechanism.
