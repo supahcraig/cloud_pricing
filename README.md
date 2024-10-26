@@ -40,8 +40,8 @@ The output is a sorted csv list of the VMs & SSD pricing by region.  Paste that 
 * Cell: `A20`
 
   This will paste everything into column A.   Note near the bottom of the screen is a clipboard with a dropdown.   Select split text to columns and everything will move to the correct column in the reference sheet.
+  *NOTE:*  be sure to include the output row stating "PRICES AS OF <date>" as well as the header row.   There will be a cell in the sheet highlighted in red telling you exactly where to paste the data.
 
-  *NOTE*:  you may need to `pip install google-auth`
 
   The code will look for a credentials key file, which you can download when you create a service acct in GCP.  The file will look like this.  It's not like a pem file, you don't need special permissions to use it.  Just make sure your python app can read the file.
 
@@ -87,6 +87,7 @@ Run `azure_pricing.py`, which will generate ~1000 lines of csv output.  Copy and
 * Cell: Currently `A91`, but soon `A5`
 
   This will paste everything into column A.   Note near the bottom of the screen is a clipboard with a dropdown.   Select split text to columns and everything will move to the correct column in the reference sheet.
+  *NOTE:*  be sure to include the output row stating "PRICES AS OF <date>" as well as the header row.   There will be a cell in the sheet highlighted in red telling you exactly where to paste the data.
 
 
 ### Maintenance
