@@ -1,5 +1,6 @@
 import requests
 import argparse
+import datetime
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 from alive_progress import alive_bar
@@ -173,6 +174,20 @@ def get_vm_pricing(credentials_path):
     sorted_vm_list = sorted(deduped_list, key=lambda x: (x[0], x[2], x[6], x[7]))
 
     # CSV output can easily be copy/pasted into the ubercalc reference sections
+
+    # You will want to paste the "prices as of" as well as the header row.
+    print(f'PRICES AS OF {datetime.datetime.now():%m/%d/%Y}')
+    print(','.join(['Region Code',
+                    'Region Name',
+                    'Compute Type',
+                    '', # placeholder
+                    '', # placeholder
+                    'Cost/hour',
+                    'Resource',
+                    'Commit Type']
+                   )
+          )
+
     for vm in sorted_vm_list:
         print( ','.join(vm) )
 
