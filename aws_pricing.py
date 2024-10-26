@@ -1,6 +1,7 @@
 import boto3
 import botocore.exceptions
 import json
+import datetime
 from alive_progress import alive_bar
 from instances import aws_instances
 from regions import aws_regions
@@ -118,6 +119,20 @@ def main():
 
     # Sort by region code & instance type.  Sorting is not required, but makes it easier to troubleshoot the Ubercalc
     sorted_vm_list = sorted(vm_attribs, key=lambda x: (x[1], x[2]))
+
+    # You will want to paste the "prices as of" as well as the header row.  
+    print(f'PRICES AS OF {datetime.datetime.now():%m/%d/%Y}')
+    print(','.join(['Region Name',
+                    'Region',
+                    'Instance Type',
+                    'Cores',
+                    'Memory (GB)',
+                    'On Demand',
+                    '1 Year RI',
+                    '3 Year RI',
+                    'Instance Store Capacity']
+                   )
+          )
 
     for vm in sorted_vm_list:
         print( ','.join(vm))
