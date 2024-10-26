@@ -1,7 +1,42 @@
 import requests
 import datetime
+import argparse
 from alive_progress import alive_bar
 from instances import azure_instances
+
+
+def list_product_names(instance):
+
+    api_url = 'https://prices.azure.com/api/retail/prices'
+    next_url = api_url
+
+    query = f"armSkuName eq '{instance}'"
+
+    productNames = []
+
+    while next_url:
+        response = requests.get(next_url, params={'$filter': query})
+
+        if response.status_code == 200:
+            pricing_data = response.json()
+
+            for item in pricing_data['Items']:
+                if item['productName'] not in productNames:
+                    productNames.append(item['productName'])
+
+        if 'nextLink' in pricing_data:
+            next_url = pricing_data['nextLink]']
+
+        else:
+            break
+
+    print(f'Possible productNames to filter on for {instance}:')
+    if productNames == []:
+        print(f'No products were found for {instance}')
+
+    else:
+        for p in productNames:
+            print(p)
 
 
 def convertToHourlyRate(term, rate):
@@ -92,4 +127,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+
+    parser = argparse.ArgumentParser(description="Azure instance name")
+    parser.add_argument('-i', '--instance', type=str, required=False, help="Azure instance name, i.e. Standard_L8as_v3")
+
+    args = parser.parse_args()
+
+    if args.instance:
+        print(f'Looking up product names for {args.instance}')
+        list_product_names(instance=args.instance)
+
+    else:
+        main()
