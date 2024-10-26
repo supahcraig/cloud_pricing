@@ -1,4 +1,5 @@
 import requests
+import argparse
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 from alive_progress import alive_bar
@@ -6,17 +7,23 @@ from regions import gcp_region_defs
 from instances import gcp_instances
 
 
-def clientSetup():
+def clientSetup(credentials_path):
     # Path to your service account key file
-    key_file_path = "./ubercalc_creds.json"
+    key_file_path = credentials_path
 
     # Create credentials using the service account key
-    scopes = ["https://www.googleapis.com/auth/cloud-billing"]
-    credentials = service_account.Credentials.from_service_account_file(key_file_path, scopes=scopes)
+    try:
+        scopes = ["https://www.googleapis.com/auth/cloud-billing"]
+        credentials = service_account.Credentials.from_service_account_file(filename=key_file_path, scopes=scopes)
 
-    # Refresh the token to ensure it's valid
-    credentials.refresh(Request())
-    access_token = credentials.token
+        # Refresh the token to ensure it's valid
+        credentials.refresh(Request())
+        access_token = credentials.token
+
+    except:
+        print('There was a problem authenticating.  Check your json key file and try again.')
+        # TODO: trap for the error.PyAsn1Error exception
+        raise
 
     return access_token
 
@@ -72,13 +79,13 @@ def translate_instance_class(sku_description, instance_family):
         return instance_family
 
 
-def get_vm_pricing():
+def get_vm_pricing(credentials_path):
 
     # Service ID for Compute Engine
     service_id = "6F81-5844-456A"  # Service ID for Compute Engine
     pricing_url = f"https://cloudbilling.googleapis.com/v1/services/{service_id}/skus"
 
-    access_token = clientSetup()
+    access_token = clientSetup(credentials_path=credentials_path)
 
     vm_attribs = []
 
@@ -170,4 +177,10 @@ def get_vm_pricing():
         print( ','.join(vm) )
 
 if __name__ == "__main__":
-    get_vm_pricing()
+
+    parser = argparse.ArgumentParser(description="Path to Google key file")
+    parser.add_argument('-k', '--key-file', type=str, required=True, help="Path to Google key file")
+
+    args = parser.parse_args()
+
+    get_vm_pricing(credentials_path=args.key_file)
