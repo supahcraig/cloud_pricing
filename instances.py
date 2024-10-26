@@ -1,4 +1,3 @@
-# Only instances in this list will have their pricing pulled.
 aws_instances  = ['i3en.large', 'i3en.xlarge', 'i3en.2xlarge', 'i3en.3xlarge', 'i3en.6xlarge', 'i3en.12xlarge',
                   'i3en.24xlarge', 'i3en.metal',
                   'im4gn.large', 'im4gn.xlarge', 'im4gn.2xlarge', 'im4gn.4xlarge', 'im4gn.8xlarge', 'im4gn.16xlarge',
@@ -15,7 +14,6 @@ aws_instances  = ['i3en.large', 'i3en.xlarge', 'i3en.2xlarge', 'i3en.3xlarge', '
                   'c5.9xlarge', 'c5.12xlarge', 'c5.18xlarge', 'c5.24xlarge', # other instances (maybe for KC connectors?)
                   ]
 
-# Only instances in these families will have their pricing pulled.
 gcp_instances = ['N2',
                  'N2D AMD']
 
@@ -25,6 +23,8 @@ gcp_instances = ['N2',
 # A typical use for this is that the Fs_v2 instances are used for BYOC connectors,
 #   but BYOC is only available in 4 Azure regions
 # Adding a new instance family will require determining the correct productName for the query filter.
+#   the -i or --instance switch will show all the productNames for a given instance
+#   azure_pricing.py --instance <instance type>
 azure_instances = [{'family': 'Las v3', 'query_string_ext': "and productName eq 'Lasv3 Series Linux'"
                                         , 'instances': ['Standard_L8as_v3',
                                                         'Standard_L16as_v3',
