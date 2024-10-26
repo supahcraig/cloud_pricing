@@ -30,6 +30,10 @@ There are two flavors of GCP pricing, I've included both because they use wildll
 
 `gcp_pricing.py`  uses some GCP python libraries to authenticate, but there is no client library to get pricing info (`google-cloud-billing` is the closest thing I could find).   Instead, it uses the same REST endpoint but gets all the skus & info about those skus in a single (paginated) call.   
 
+#### Usage
+
+`python gcp_pricing,py -k /path/to/your/credentials/key_file.json`
+
 The output is a sorted csv list of the VMs & SSD pricing by region.  Paste that csv into the Ubercalc:
 * Tab: `GCP_Reference`
 * Cell: `A20`
