@@ -96,7 +96,7 @@ Run `azure_pricing.py`, which will generate ~1000 lines of csv output.  Copy and
 
 * If you need to add a whole new family, you'll have to add the new structure to the `azure_instances` list.  You'll also need to figure out the productName to add to the query string, using the `--instance` command line parameter:
 
-`python azure_pricing --instance Standard_A8_v2`
+`python azure_pricing.py --instance Standard_A8_v2`
 
 This will return a list of all productNames associated to that instance type.  Find the correct one (usually the one involving Linux or non-Windows VM), and include it in the query extension in your new azure instance in `instances.py`
 
