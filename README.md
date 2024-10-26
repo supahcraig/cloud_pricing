@@ -11,9 +11,10 @@ This uses boto3 to get pricing information by instance/region, and I believe mak
 
 Run `aws_pricing.py`, which will generate aabout 2k lines of csv output.   Copy this and paste into the Ubercalc: 
 * Tab: `AWS_Reference`
-* Cell: `A6`
+* Cell: `A4`
 
   This will paste everything into column A.   Note near the bottom of the screen is a clipboard with a dropdown.   Select split text to columns and everything will move to the correct column in the reference sheet.
+  *NOTE:*  be sure to include the output row stating "PRICES AS OF <date>" as well as the header row.   There will be a cell in the sheet highlighted in red telling you exactly where to paste the data.
 
 ### Maintenance
 
