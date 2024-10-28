@@ -121,6 +121,7 @@ def main():
     sorted_vm_list = sorted(vm_attribs, key=lambda x: (x[1], x[2]))
 
     # You will want to paste the "prices as of" as well as the header row.  
+    print(".......COPY EVERYTHING BELOW THIS LINE.......")
     print(f'PRICES AS OF {datetime.datetime.now():%m/%d/%Y}')
     print(','.join(['Region Name',
                     'Region',
