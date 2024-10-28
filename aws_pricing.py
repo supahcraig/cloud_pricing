@@ -7,6 +7,7 @@ from instances import aws_instances
 from regions import aws_regions
 
 
+
 excluded_regions = ['cn-north-1']
 
 excluded_location_types = ['AWS Wavelength Zone', 'AWS Local Zone']
