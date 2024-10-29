@@ -176,6 +176,7 @@ def get_vm_pricing(credentials_path):
     # CSV output can easily be copy/pasted into the ubercalc reference sections
 
     # You will want to paste the "prices as of" as well as the header row.
+    print(".......COPY EVERYTHING BELOW THIS LINE.......")
     print(f'PRICES AS OF {datetime.datetime.now():%m/%d/%Y}')
     print(','.join(['Region Code',
                     'Region Name',
